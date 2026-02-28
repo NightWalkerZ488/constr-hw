@@ -508,6 +508,7 @@ Plan: 7 to add, 0 to change, 0 to destroy.
 
 ```
 Результат выполнения кода:
+
 ![run](https://github.com/NightWalkerZ488/constr-hw/blob/main/suc_create.png)
 
 ### Задание 3
