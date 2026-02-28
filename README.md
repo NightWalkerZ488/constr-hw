@@ -38,7 +38,477 @@ variable "each_vm" {
 
 ### Выполнение задания 2:
 
+Создаём файл count-vm.tf с описанием одинаковых ВМ:
 
+```
+ Создаём 2 ВМ
+resource "yandex_compute_instance" "web" {
+  count = 2
+
+  name        = "web-${count.index + 1}" # web-1, web-2 (не 0 и 1!)
+  platform_id = "standard-v1"
+  zone        = var.default_zone
+
+  # Ресурсы
+  resources {
+    cores  = 2
+    memory = 2
+  }
+
+  # Образ
+  boot_disk {
+    initialize_params {
+      image_id = "fd804teg9bthv0h96s8v"
+      size     = 10
+    }
+  }
+
+  # Сеть и группы безопасности
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.develop.id
+    security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
+    nat                = true
+  }
+
+  # SSH
+  metadata = {
+    ssh-keys = "ubuntu:${local.ssh_public_key}"
+  }
+
+  # Прерываемая ВМ
+  scheduling_policy {
+    preemptible = true
+  }
+
+  depends_on = [yandex_compute_instance.db]
+}
+
+```
+
+Создаём for_each-vm.tf:
+
+```
+# ВМ для БД
+resource "yandex_compute_instance" "db" {
+  for_each = { for vm in var.each_vm : vm.vm_name => vm }
+
+  name        = "db-${each.value.vm_name}"
+  platform_id = "standard-v1"
+  zone        = var.default_zone
+
+  # Ресурсы
+  resources {
+    cores  = each.value.cpu
+    memory = each.value.ram
+  }
+
+  # Диск
+  boot_disk {
+    initialize_params {
+      image_id = "fd804teg9bthv0h96s8v"
+      size     = 10
+    }
+  }
+
+  # Сеть
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.develop.id
+    security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
+    nat                = true
+  }
+
+  # SSH
+  metadata = {
+    ssh-keys = "ubuntu:${local.ssh_public_key}"
+  }
+
+  # Прерываемая ВМ
+  scheduling_policy {
+    preemptible = true
+  }
+
+}
+
+```
+Terraform plan:
+```
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # yandex_compute_instance.db["main"] will be created
+  + resource "yandex_compute_instance" "db" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "ssh-keys" = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOz3h9ny7Wirov8wtkZALj7lLuX54oVhbUMR4k/ipEG8 your_email@example.com
+            EOT
+        }
+      + name                      = "db-main"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v1"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd804teg9bthv0h96s8v"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 100
+          + cores         = 4
+          + memory        = 8
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_compute_instance.db["replica"] will be created
+  + resource "yandex_compute_instance" "db" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "ssh-keys" = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOz3h9ny7Wirov8wtkZALj7lLuX54oVhbUMR4k/ipEG8 your_email@example.com
+            EOT
+        }
+      + name                      = "db-replica"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v1"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd804teg9bthv0h96s8v"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 100
+          + cores         = 2
+          + memory        = 4
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_compute_instance.web[0] will be created
+  + resource "yandex_compute_instance" "web" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "ssh-keys" = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOz3h9ny7Wirov8wtkZALj7lLuX54oVhbUMR4k/ipEG8 your_email@example.com
+            EOT
+        }
+      + name                      = "web-1"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v1"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd804teg9bthv0h96s8v"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 100
+          + cores         = 2
+          + memory        = 2
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_compute_instance.web[1] will be created
+  + resource "yandex_compute_instance" "web" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "ssh-keys" = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOz3h9ny7Wirov8wtkZALj7lLuX54oVhbUMR4k/ipEG8 your_email@example.com
+            EOT
+        }
+      + name                      = "web-2"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v1"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd804teg9bthv0h96s8v"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 100
+          + cores         = 2
+          + memory        = 2
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+    }
+
+  # yandex_vpc_network.develop will be created
+  + resource "yandex_vpc_network" "develop" {
+      + created_at                = (known after apply)
+      + default_security_group_id = (known after apply)
+      + folder_id                 = (known after apply)
+      + id                        = (known after apply)
+      + labels                    = (known after apply)
+      + name                      = "develop"
+      + subnet_ids                = (known after apply)
+    }
+
+  # yandex_vpc_security_group.example_dynamic will be created
+  + resource "yandex_vpc_security_group" "example_dynamic" {
+      + created_at = (known after apply)
+      + folder_id  = "b1g4a0dfb0lknirfbma8"
+      + id         = (known after apply)
+      + labels     = (known after apply)
+      + name       = "example_dynamic"
+      + network_id = (known after apply)
+      + status     = (known after apply)
+
+      + egress {
+          + description       = "разрешить весь исходящий трафик"
+          + from_port         = 0
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = -1
+          + protocol          = "TCP"
+          + to_port           = 65365
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+
+      + ingress {
+          + description       = "разрешить входящий  http"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 80
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "разрешить входящий https"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 443
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+      + ingress {
+          + description       = "разрешить входящий ssh"
+          + from_port         = -1
+          + id                = (known after apply)
+          + labels            = (known after apply)
+          + port              = 22
+          + protocol          = "TCP"
+          + to_port           = -1
+          + v4_cidr_blocks    = [
+              + "0.0.0.0/0",
+            ]
+          + v6_cidr_blocks    = []
+            # (2 unchanged attributes hidden)
+        }
+    }
+
+  # yandex_vpc_subnet.develop will be created
+  + resource "yandex_vpc_subnet" "develop" {
+      + created_at     = (known after apply)
+      + folder_id      = (known after apply)
+      + id             = (known after apply)
+      + labels         = (known after apply)
+      + name           = "develop"
+      + network_id     = (known after apply)
+      + v4_cidr_blocks = [
+          + "10.0.1.0/24",
+        ]
+      + v6_cidr_blocks = (known after apply)
+      + zone           = "ru-central1-a"
+    }
+
+Plan: 7 to add, 0 to change, 0 to destroy.
+
+```
+Результат выполнения кода:
+![run](https://github.com/NightWalkerZ488/constr-hw/blob/main/suc_create.png)
 
 ### Задание 3
 
