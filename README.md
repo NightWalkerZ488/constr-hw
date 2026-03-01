@@ -700,4 +700,4 @@ output "inventory_file_path" {
 
 Ссылка на репозиторий: https://github.com/NightWalkerZ488/constr-hw
 
-Ссылка на коммит: 
+Ссылка на коммит: https://github.com/NightWalkerZ488/constr-hw/commit/c09107e5341c20a4918c657469a213f516d52386
