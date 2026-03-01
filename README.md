@@ -619,3 +619,85 @@ storage ansible_host=<внешний ip-адрес> fqdn=<полное доме�
 **Удалите все созданные ресурсы**.
 
 ------
+
+### Выполнение задания 4:
+
+Создаём файл ansible_inventory.tpl:
+
+```
+[webservers]
+%{ for vm in webservers ~}
+${vm.name} ansible_host=${vm.external_ip} fqdn=${vm.fqdn}
+%{ endfor ~}
+
+[databases]
+%{ for vm in databases ~}
+${vm.name} ansible_host=${vm.external_ip} fqdn=${vm.fqdn}
+%{ endfor ~}
+
+[storage]
+%{ for vm in storage ~}
+${vm.name} ansible_host=${vm.external_ip} fqdn=${vm.fqdn}
+%{ endfor ~}
+
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+```
+
+Создаём ansible.tf:
+```
+# Переменные для сбора данных о ВМ
+locals {
+  # Веб-серверы (из count-vm.tf)
+  webservers = [
+    for instance in yandex_compute_instance.web :
+    {
+      name        = instance.name
+      external_ip = instance.network_interface.0.nat_ip_address
+      fqdn        = instance.fqdn
+    }
+  ]
+
+  # Базы данных 
+  databases = [
+    for instance in yandex_compute_instance.db :
+    {
+      name        = instance.name
+      external_ip = instance.network_interface.0.nat_ip_address
+      fqdn        = instance.fqdn
+    }
+  ]
+
+  # Хранилище
+    {
+      name        = yandex_compute_instance.storage.name
+      external_ip = yandex_compute_instance.storage.network_interface.0.nat_ip_address
+      fqdn        = yandex_compute_instance.storage.fqdn
+    }
+  ]
+}
+
+# Генерация inventory-файла 
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/inventory.ini"
+  content = templatefile("${path.module}/ansible_inventory.tpl", {
+    webservers = local.webservers
+    databases  = local.databases
+    storage    = local.storage
+  })
+}
+
+# Output 
+output "inventory_file_path" {
+  description = "Path to generated Ansible inventory file"
+  value       = local_file.ansible_inventory.filename
+}
+```
+После запуска кода проверяем inventory:
+
+![inventory](https://github.com/NightWalkerZ488/constr-hw/blob/main/inventory.png)
+
+Ссылка на репозиторий: https://github.com/NightWalkerZ488/constr-hw
+
+Ссылка на коммит: 
