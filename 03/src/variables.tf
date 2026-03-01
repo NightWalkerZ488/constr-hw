@@ -30,3 +30,29 @@ variable "vpc_name" {
   default     = "develop"
   description = "VPC network&subnet name"
 }
+
+variable "each_vm" {
+  type = list(object({
+    vm_name     = string
+    cpu         = number
+    ram         = number
+    disk_volume = number
+  }))
+
+  description = "Параметры ВМ для баз данных"
+
+  default = [
+    {
+      vm_name     = "main"
+      cpu         = 4
+      ram         = 8
+      disk_volume = 20
+    },
+    {
+      vm_name     = "replica"
+      cpu         = 2
+      ram         = 4
+      disk_volume = 15
+    }
+  ]
+}
