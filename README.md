@@ -516,6 +516,80 @@ Plan: 7 to add, 0 to change, 0 to destroy.
 1. Создайте 3 одинаковых виртуальных диска размером 1 Гб с помощью ресурса yandex_compute_disk и мета-аргумента count в файле **disk_vm.tf** .
 2. Создайте в том же файле **одиночную**(использовать count или for_each запрещено из-за задания №4) ВМ c именем "storage"  . Используйте блок **dynamic secondary_disk{..}** и мета-аргумент for_each для подключения созданных вами дополнительных дисков.
 
+### Выполнение задания 3:
+
+Создаём disc_vm.tf с нужными параметрами:
+
+```
+# Создаём 3 диска по 1 Гб
+resource "yandex_compute_disk" "storage_disk" {
+  count = 3
+
+  name = "storage-disk-${count.index + 1}"
+  type = "network-hdd"
+  zone = var.default_zone
+  size = 1 # 1 Гб
+}
+
+# 2. Создаём ВМ "storage"
+resource "yandex_compute_instance" "storage" {
+  name        = "storage"
+  platform_id = "standard-v1"
+  zone        = var.default_zone
+
+  # Минимальные ресурсы
+  resources {
+    cores  = 2
+    memory = 2
+  }
+
+  # Ubuntu
+  boot_disk {
+    initialize_params {
+      image_id = "fd804teg9bthv0h96s8v" 
+      size     = 10
+    }
+  }
+
+  # Сеть
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.develop.id
+    security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
+    nat                = true
+  }
+
+  # SSH ключ
+  metadata = {
+    ssh-keys = "ubuntu:${local.ssh_public_key}"
+  }
+
+  # Прерываемая ВМ
+  scheduling_policy {
+    preemptible = true
+  }
+
+  # Подключение дисков через for_each
+  dynamic "secondary_disk" {
+    for_each = yandex_compute_disk.storage_disk
+
+    content {
+      disk_id     = secondary_disk.value.id
+      mode        = "READ_WRITE"
+      auto_delete = false
+    }
+  }
+
+  # ВМ создаётся после дисков
+  depends_on = [yandex_compute_disk.storage_disk]
+}
+
+```
+Проверяем запущенные ВМ и диски в панели управления:
+
+![vm](https://github.com/NightWalkerZ488/constr-hw/blob/main/vms.png)
+
+![disks](https://github.com/NightWalkerZ488/constr-hw/blob/main/disks.png)
+
 ------
 
 ### Задание 4
