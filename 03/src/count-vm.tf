@@ -1,38 +1,38 @@
-# Создаём 2 ВМ
 resource "yandex_compute_instance" "web" {
   count = 2
 
-  name        = "web-${count.index + 1}" # web-1, web-2 (не 0 и 1!)
-  platform_id = "standard-v1"
+  name        = "web-${count.index + 1}"
+  platform_id = var.platform_id
   zone        = var.default_zone
 
-  # Ресурсы
   resources {
-    cores  = 2
-    memory = 2
+    cores  = var.web_cores
+    memory = var.web_memory
   }
 
-  # Образ
   boot_disk {
     initialize_params {
-      image_id = "fd804teg9bthv0h96s8v"
-      size     = 10
+      image_id = data.yandex_compute_image.ubuntu.id
+      size     = var.boot_disk_size
     }
   }
 
-  # Сеть и группы безопасности
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
+
   network_interface {
     subnet_id          = yandex_vpc_subnet.develop.id
     security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
     nat                = true
   }
 
-  # SSH
   metadata = {
     ssh-keys = "ubuntu:${local.ssh_public_key}"
   }
 
-  # Прерываемая ВМ
   scheduling_policy {
     preemptible = true
   }

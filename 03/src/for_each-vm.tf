@@ -15,11 +15,16 @@ resource "yandex_compute_instance" "db" {
   # Диск
   boot_disk {
     initialize_params {
-      image_id = "fd804teg9bthv0h96s8v"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
   # Сеть
   network_interface {
     subnet_id          = yandex_vpc_subnet.develop.id
