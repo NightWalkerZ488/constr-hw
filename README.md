@@ -41,41 +41,41 @@ variable "each_vm" {
 Создаём файл count-vm.tf с описанием одинаковых ВМ:
 
 ```
- Создаём 2 ВМ
 resource "yandex_compute_instance" "web" {
   count = 2
 
-  name        = "web-${count.index + 1}" # web-1, web-2 (не 0 и 1!)
-  platform_id = "standard-v1"
+  name        = "web-${count.index + 1}"
+  platform_id = var.platform_id
   zone        = var.default_zone
 
-  # Ресурсы
   resources {
-    cores  = 2
-    memory = 2
+    cores  = var.web_cores
+    memory = var.web_memory
   }
 
-  # Образ
   boot_disk {
     initialize_params {
-      image_id = "fd804teg9bthv0h96s8v"
-      size     = 10
+      image_id = data.yandex_compute_image.ubuntu.id
+      size     = var.boot_disk_size
     }
   }
 
-  # Сеть и группы безопасности
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
+
   network_interface {
     subnet_id          = yandex_vpc_subnet.develop.id
     security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
     nat                = true
   }
 
-  # SSH
   metadata = {
     ssh-keys = "ubuntu:${local.ssh_public_key}"
   }
 
-  # Прерываемая ВМ
   scheduling_policy {
     preemptible = true
   }
@@ -105,11 +105,16 @@ resource "yandex_compute_instance" "db" {
   # Диск
   boot_disk {
     initialize_params {
-      image_id = "fd804teg9bthv0h96s8v"
+      image_id = data.yandex_compute_image.ubuntu.id
       size     = 10
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
   # Сеть
   network_interface {
     subnet_id          = yandex_vpc_subnet.develop.id
@@ -128,14 +133,86 @@ resource "yandex_compute_instance" "db" {
   }
 
 }
-
 ```
 Terraform plan:
 ```
+terraform plan
+data.yandex_compute_image.ubuntu: Reading...
+data.yandex_compute_image.ubuntu: Read complete after 1s [id=fd875m9ethhftod6n2vd]
+
 Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
   + create
 
 Terraform will perform the following actions:
+
+  # local_file.ansible_inventory will be created
+  + resource "local_file" "ansible_inventory" {
+      + content              = (known after apply)
+      + content_base64sha256 = (known after apply)
+      + content_base64sha512 = (known after apply)
+      + content_md5          = (known after apply)
+      + content_sha1         = (known after apply)
+      + content_sha256       = (known after apply)
+      + content_sha512       = (known after apply)
+      + directory_permission = "0777"
+      + file_permission      = "0777"
+      + filename             = "./inventory.ini"
+      + id                   = (known after apply)
+    }
+
+  # yandex_compute_disk.storage_disk[0] will be created
+  + resource "yandex_compute_disk" "storage_disk" {
+      + block_size  = 4096
+      + created_at  = (known after apply)
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + name        = "storage-disk-1"
+      + product_ids = (known after apply)
+      + size        = 1
+      + status      = (known after apply)
+      + type        = "network-hdd"
+      + zone        = "ru-central1-a"
+
+      + disk_placement_policy (known after apply)
+
+      + hardware_generation (known after apply)
+    }
+
+  # yandex_compute_disk.storage_disk[1] will be created
+  + resource "yandex_compute_disk" "storage_disk" {
+      + block_size  = 4096
+      + created_at  = (known after apply)
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + name        = "storage-disk-2"
+      + product_ids = (known after apply)
+      + size        = 1
+      + status      = (known after apply)
+      + type        = "network-hdd"
+      + zone        = "ru-central1-a"
+
+      + disk_placement_policy (known after apply)
+
+      + hardware_generation (known after apply)
+    }
+
+  # yandex_compute_disk.storage_disk[2] will be created
+  + resource "yandex_compute_disk" "storage_disk" {
+      + block_size  = 4096
+      + created_at  = (known after apply)
+      + folder_id   = (known after apply)
+      + id          = (known after apply)
+      + name        = "storage-disk-3"
+      + product_ids = (known after apply)
+      + size        = 1
+      + status      = (known after apply)
+      + type        = "network-hdd"
+      + zone        = "ru-central1-a"
+
+      + disk_placement_policy (known after apply)
+
+      + hardware_generation (known after apply)
+    }
 
   # yandex_compute_instance.db["main"] will be created
   + resource "yandex_compute_instance" "db" {
@@ -168,7 +245,7 @@ Terraform will perform the following actions:
           + initialize_params {
               + block_size  = (known after apply)
               + description = (known after apply)
-              + image_id    = "fd804teg9bthv0h96s8v"
+              + image_id    = "fd875m9ethhftod6n2vd"
               + name        = (known after apply)
               + size        = 10
               + snapshot_id = (known after apply)
@@ -236,7 +313,7 @@ Terraform will perform the following actions:
           + initialize_params {
               + block_size  = (known after apply)
               + description = (known after apply)
-              + image_id    = "fd804teg9bthv0h96s8v"
+              + image_id    = "fd875m9ethhftod6n2vd"
               + name        = (known after apply)
               + size        = 10
               + snapshot_id = (known after apply)
@@ -273,6 +350,93 @@ Terraform will perform the following actions:
         }
     }
 
+  # yandex_compute_instance.storage will be created
+  + resource "yandex_compute_instance" "storage" {
+      + created_at                = (known after apply)
+      + folder_id                 = (known after apply)
+      + fqdn                      = (known after apply)
+      + gpu_cluster_id            = (known after apply)
+      + hardware_generation       = (known after apply)
+      + hostname                  = (known after apply)
+      + id                        = (known after apply)
+      + maintenance_grace_period  = (known after apply)
+      + maintenance_policy        = (known after apply)
+      + metadata                  = {
+          + "ssh-keys" = <<-EOT
+                ubuntu:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOz3h9ny7Wirov8wtkZALj7lLuX54oVhbUMR4k/ipEG8 your_email@example.com
+            EOT
+        }
+      + name                      = "storage"
+      + network_acceleration_type = "standard"
+      + platform_id               = "standard-v1"
+      + status                    = (known after apply)
+      + zone                      = "ru-central1-a"
+
+      + boot_disk {
+          + auto_delete = true
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = (known after apply)
+
+          + initialize_params {
+              + block_size  = (known after apply)
+              + description = (known after apply)
+              + image_id    = "fd875m9ethhftod6n2vd"
+              + name        = (known after apply)
+              + size        = 10
+              + snapshot_id = (known after apply)
+              + type        = "network-hdd"
+            }
+        }
+
+      + metadata_options (known after apply)
+
+      + network_interface {
+          + index              = (known after apply)
+          + ip_address         = (known after apply)
+          + ipv4               = true
+          + ipv6               = (known after apply)
+          + ipv6_address       = (known after apply)
+          + mac_address        = (known after apply)
+          + nat                = true
+          + nat_ip_address     = (known after apply)
+          + nat_ip_version     = (known after apply)
+          + security_group_ids = (known after apply)
+          + subnet_id          = (known after apply)
+        }
+
+      + placement_policy (known after apply)
+
+      + resources {
+          + core_fraction = 100
+          + cores         = 2
+          + memory        = 2
+        }
+
+      + scheduling_policy {
+          + preemptible = true
+        }
+
+      + secondary_disk {
+          + auto_delete = false
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = "READ_WRITE"
+        }
+      + secondary_disk {
+          + auto_delete = false
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = "READ_WRITE"
+        }
+      + secondary_disk {
+          + auto_delete = false
+          + device_name = (known after apply)
+          + disk_id     = (known after apply)
+          + mode        = "READ_WRITE"
+        }
+    }
+
   # yandex_compute_instance.web[0] will be created
   + resource "yandex_compute_instance" "web" {
       + created_at                = (known after apply)
@@ -304,7 +468,7 @@ Terraform will perform the following actions:
           + initialize_params {
               + block_size  = (known after apply)
               + description = (known after apply)
-              + image_id    = "fd804teg9bthv0h96s8v"
+              + image_id    = "fd875m9ethhftod6n2vd"
               + name        = (known after apply)
               + size        = 10
               + snapshot_id = (known after apply)
@@ -372,7 +536,7 @@ Terraform will perform the following actions:
           + initialize_params {
               + block_size  = (known after apply)
               + description = (known after apply)
-              + image_id    = "fd804teg9bthv0h96s8v"
+              + image_id    = "fd875m9ethhftod6n2vd"
               + name        = (known after apply)
               + size        = 10
               + snapshot_id = (known after apply)
@@ -504,7 +668,10 @@ Terraform will perform the following actions:
       + zone           = "ru-central1-a"
     }
 
-Plan: 7 to add, 0 to change, 0 to destroy.
+Plan: 12 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + inventory_file_path = "./inventory.ini"
 
 ```
 Результат выполнения кода:
@@ -521,65 +688,64 @@ Plan: 7 to add, 0 to change, 0 to destroy.
 Создаём disc_vm.tf с нужными параметрами:
 
 ```
-# Создаём 3 диска по 1 Гб
+# 1. Создаём 3 диска
 resource "yandex_compute_disk" "storage_disk" {
   count = 3
 
   name = "storage-disk-${count.index + 1}"
-  type = "network-hdd"
+  type = var.storage_disk_type
   zone = var.default_zone
-  size = 1 # 1 Гб
+  size = var.storage_disk_size
 }
 
 # 2. Создаём ВМ "storage"
 resource "yandex_compute_instance" "storage" {
   name        = "storage"
-  platform_id = "standard-v1"
+  platform_id = var.platform_id
   zone        = var.default_zone
 
-  # Минимальные ресурсы
   resources {
-    cores  = 2
-    memory = 2
+    cores  = var.storage_cores
+    memory = var.storage_memory
   }
 
-  # Ubuntu
   boot_disk {
     initialize_params {
-      image_id = "fd804teg9bthv0h96s8v" 
-      size     = 10
+      image_id = data.yandex_compute_image.ubuntu.id
+      size     = var.boot_disk_size
     }
   }
 
-  # Сеть
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
+
   network_interface {
     subnet_id          = yandex_vpc_subnet.develop.id
     security_group_ids = [yandex_vpc_security_group.example_dynamic.id]
     nat                = true
   }
 
-  # SSH ключ
   metadata = {
     ssh-keys = "ubuntu:${local.ssh_public_key}"
   }
 
-  # Прерываемая ВМ
   scheduling_policy {
     preemptible = true
   }
 
-  # Подключение дисков через for_each
   dynamic "secondary_disk" {
     for_each = yandex_compute_disk.storage_disk
 
     content {
       disk_id     = secondary_disk.value.id
-      mode        = "READ_WRITE"
-      auto_delete = false
+      mode        = var.disk_attach_mode
+      auto_delete = var.disk_auto_delete
     }
   }
 
-  # ВМ создаётся после дисков
   depends_on = [yandex_compute_disk.storage_disk]
 }
 
